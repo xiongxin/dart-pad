@@ -60,6 +60,11 @@ build() {
       workingDirectory: 'build/web');
   log('${mobileHtmlFile.path} vulcanize: ${_printSize(mobileHtmlFile)}');
 
+  // Stamp the html files with the app version.
+  String version = _getAppVersion();
+  _interpolateInFile(_buildDir.join('web', 'index.html').asFile, {'version': version});
+  _interpolateInFile(mobileHtmlFile.asFile, {'version': version});
+
   return _uploadCompiledStats(
       mainFile.asFile.lengthSync(),
       mobileFile.asFile.lengthSync());
@@ -158,5 +163,25 @@ Future _uploadCompiledStats(num mainLength, int mobileLength) {
   }
 }
 
+/// Replace variable references in the given file, overwritting the file
+/// in-place.
+void _interpolateInFile(File file, Map<String, String> vars) {
+  String contents = file.readAsStringSync();
+  String newContents = contents;
+
+  vars.forEach((key, value) {
+    newContents = newContents.replaceAll('\${${key}}', value);
+  });
+
+  if (newContents != contents) {
+    file.writeAsStringSync(newContents);
+  }
+}
+
 String _printSize(FilePath file) =>
     '${(file.asFile.lengthSync() + 1023) ~/ 1024}k';
+
+String _getAppVersion() {
+  Map pubspec = yaml.loadYaml(new File('pubspec.yaml').readAsStringSync());
+  return pubspec['version'];
+}
