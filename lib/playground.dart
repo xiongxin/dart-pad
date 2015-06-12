@@ -69,6 +69,8 @@ class Playground implements GistContainer, GistController {
   SharingDialog sharingDialog;
   KeysDialog settings;
 
+  _AnalysisProvider _analysisProvider = new _AnalysisProvider();
+
   // We store the last returned shared gist; it's used to update the url.
   Gist _overrideNextRouteGist;
   ParameterPopup paramPopup;
@@ -101,11 +103,11 @@ class Playground implements GistContainer, GistController {
         if (val) {
           _gistStorage.clearStoredGist();
           editableGist.reset();
-          _lastAnalysisResults = null;
 
           // Delay to give time for the model change event to propogate through
           // to the editor component (which is where `_performAnalysis()` pulls
           // the Dart source from).
+          _analysisProvider.clearCache();
           Timer.run(() => _performAnalysis());
         }
       });
@@ -196,9 +198,9 @@ class Playground implements GistContainer, GistController {
     // We delay this because of the latency in populating the editors from the
     // gist data.
     Timer.run(_autoSwitchSourceTab);
-    _lastAnalysisResults = null;
 
     // Analyze and run it.
+    _analysisProvider.clearCache();
     Timer.run(() {
       _performAnalysis().then((bool result) {
         // Only auto-run if the static analysis comes back clean.
@@ -289,9 +291,9 @@ class Playground implements GistContainer, GistController {
       // We delay this because of the latency in populating the editors from the
       // gist data.
       Timer.run(_autoSwitchSourceTab);
-      _lastAnalysisResults = null;
 
       // Analyze and run it.
+      _analysisProvider.clearCache();
       Timer.run(() {
         _performAnalysis().then((bool result) {
           // Only auto-run if the static analysis comes back clean.
@@ -567,33 +569,21 @@ class Playground implements GistContainer, GistController {
     }
   }
 
-  AnalysisResults _lastAnalysisResults;
-
   Future<String> _createSummary() {
-    if (_lastAnalysisResults != null) {
-      Summarizer summer = new Summarizer(
+    SourceRequest input = new SourceRequest()..source = _context.dartSource;
+    return _analysisProvider
+        .analyze(input, useCache: true)
+        .timeout(shortServiceCallTimeout)
+        .then((AnalysisResults results) {
+      Summarizer summarizer = new Summarizer(
           dart: _context.dartSource,
           html: _context.htmlSource,
           css: _context.cssSource,
-          analysis: _lastAnalysisResults);
-      return new Future.value(summer.returnAsSimpleSummary());
-    } else {
-      SourceRequest input = new SourceRequest()..source = _context.dartSource;
-      return dartServices
-          .analyze(input)
-          .timeout(shortServiceCallTimeout)
-          .then((AnalysisResults results) {
-        _lastAnalysisResults = results;
-        Summarizer summer = new Summarizer(
-            dart: _context.dartSource,
-            html: _context.htmlSource,
-            css: _context.cssSource,
-            analysis: results);
-        return summer.returnAsSimpleSummary();
-      }).catchError((e) {
-        _logger.severe(e);
-      });
-    }
+          analysis: results);
+      return summarizer.returnAsSimpleSummary();
+    }).catchError((e) {
+      _logger.severe(e);
+    });
   }
 
   /// Perform static analysis of the source code. Return whether the code
@@ -602,12 +592,10 @@ class Playground implements GistContainer, GistController {
     SourceRequest input = new SourceRequest()..source = _context.dartSource;
     Lines lines = new Lines(input.source);
 
-    Future request = dartServices.analyze(input).timeout(serviceCallTimeout);
+    Future request = _analysisProvider.analyze(input).timeout(serviceCallTimeout);
     _analysisRequest = request;
 
     return request.then((AnalysisResults results) {
-      _lastAnalysisResults = results;
-
       // Discard if we requested another analysis.
       if (_analysisRequest != request) return false;
 
@@ -914,4 +902,28 @@ class EditorDocumentProperty implements Property {
   }
 
   Stream get onChanged => document.onChange.map((_) => get());
+}
+
+/// Provides access to the analysis service and keeps a cache of the last
+/// analysis call.
+class _AnalysisProvider {
+  AnalysisResults _lastResults;
+
+  Future<AnalysisResults> analyze(SourceRequest request, {bool useCache: false}) {
+    if (useCache && _lastResults != null) {
+      return new Future.value(_lastResults);
+    }
+
+    return dartServices.analyze(request).then((AnalysisResults results) {
+      _lastResults = results;
+      return results;
+    }).catchError((e) {
+      _lastResults = null;
+      throw e;
+    });
+  }
+
+  void clearCache() {
+    _lastResults = null;
+  }
 }
