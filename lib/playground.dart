@@ -93,7 +93,7 @@ class Playground implements GistContainer, GistController {
 
     overlay = new DOverlay(querySelector('#frame_overlay'));
 
-    sharingDialog = new SharingDialog(this, this);
+    sharingDialog = new SharingDialog(this, this, _createSummary);
 
     new NewPadAction(querySelector('#newbutton'), this);
 
@@ -116,8 +116,8 @@ class Playground implements GistContainer, GistController {
     });
 
     DButton shareButton = new DButton(querySelector('#sharebutton'));
-    shareButton.onClick.listen((e) => _createSummary()
-        .then((String sum) => sharingDialog.showWithSummary(sum)));
+    shareButton.onClick.listen((_) => sharingDialog.show());
+
     runButton = new DButton(querySelector('#runbutton'));
     runButton.onClick.listen((e) {
       _handleRun();
@@ -545,7 +545,7 @@ class Playground implements GistContainer, GistController {
       outputTabController.selectTab("result");
     }
   }
-  
+
   Future<String> _createSummary() {
     SourceRequest input = new SourceRequest()..source = _context.dartSource;
     return dartServices

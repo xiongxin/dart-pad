@@ -70,6 +70,7 @@ class AboutDialog extends DDialog {
 class SharingDialog extends DDialog {
   final GistContainer gistContainer;
   final GistController gistController;
+  final Function summaryGenerator;
 
   ParagraphElement _text;
   TextAreaElement _textArea;
@@ -79,14 +80,10 @@ class SharingDialog extends DDialog {
   DElement _div;
   DInput _padUrl;
   DInput _gistUrl;
-  String _summary;
 
-  SharingDialog(
-      GistContainer this.gistContainer, GistController this.gistController,
-      {String summary: ""})
-      : super(title: 'Sharing') {
+  SharingDialog(this.gistContainer, this.gistController, this.summaryGenerator) :
+      super(title: 'Sharing') {
     element.classes.toggle('sharing-dialog', true);
-    _summary = summary;
 
     content.setAttr('layout');
     content.setAttr('vertical');
@@ -131,25 +128,20 @@ class SharingDialog extends DDialog {
     _gistUrl.onClick.listen((_) => _gistUrl.selectAll());
   }
 
-  void showWithSummary(String summary) {
-    this._summary = summary;
-    show();
-  }
-
   void show() {
-    _configure(gistContainer.mutableGist);
-    super.show();
-  }
-
-  void _configure(MutableGist gist) {
+    MutableGist gist = gistContainer.mutableGist;
     if (!gist.hasId || gist.dirty) {
-      _switchTo(aboutToShare: true);
+      summaryGenerator().then((summary) {
+        _switchTo(aboutToShare: true, summary: summary);
+        super.show();
+      });
     } else {
       _switchTo(aboutToShare: false);
+      super.show();
     }
   }
 
-  void _switchTo({bool aboutToShare: true}) {
+  void _switchTo({bool aboutToShare: true, String summary}) {
     buttonArea.element.children.clear();
     _div.dispose();
 
@@ -157,7 +149,7 @@ class SharingDialog extends DDialog {
       // Show 'about to share'.
       _text.text = 'Sharing this pad will create a permanent, publicly visible '
           'copy on gist.github.com.';
-      _textArea.defaultValue = _summary == null ? '' : _summary;
+      _textArea.defaultValue = summary == null ? '' : summary;
       _textArea.style.display = 'block';
 
       buttonArea.add(_cancelButton);
