@@ -101,6 +101,8 @@ class Playground implements GistContainer, GistController {
         if (val) {
           _gistStorage.clearStoredGist();
           editableGist.reset();
+          _lastAnalysisResults = null;
+
           // Delay to give time for the model change event to propogate through
           // to the editor component (which is where `_performAnalysis()` pulls
           // the Dart source from).
@@ -194,6 +196,7 @@ class Playground implements GistContainer, GistController {
     // We delay this because of the latency in populating the editors from the
     // gist data.
     Timer.run(_autoSwitchSourceTab);
+    _lastAnalysisResults = null;
 
     // Analyze and run it.
     Timer.run(() {
@@ -286,6 +289,7 @@ class Playground implements GistContainer, GistController {
       // We delay this because of the latency in populating the editors from the
       // gist data.
       Timer.run(_autoSwitchSourceTab);
+      _lastAnalysisResults = null;
 
       // Analyze and run it.
       Timer.run(() {
@@ -563,21 +567,33 @@ class Playground implements GistContainer, GistController {
     }
   }
 
+  AnalysisResults _lastAnalysisResults;
+
   Future<String> _createSummary() {
-    SourceRequest input = new SourceRequest()..source = _context.dartSource;
-    return dartServices
-        .analyze(input)
-        .timeout(shortServiceCallTimeout)
-        .then((AnalysisResults result) {
+    if (_lastAnalysisResults != null) {
       Summarizer summer = new Summarizer(
           dart: _context.dartSource,
           html: _context.htmlSource,
           css: _context.cssSource,
-          analysis: result);
-      return summer.returnAsSimpleSummary();
-    }).catchError((e) {
-      _logger.severe(e);
-    });
+          analysis: _lastAnalysisResults);
+      return new Future.value(summer.returnAsSimpleSummary());
+    } else {
+      SourceRequest input = new SourceRequest()..source = _context.dartSource;
+      return dartServices
+          .analyze(input)
+          .timeout(shortServiceCallTimeout)
+          .then((AnalysisResults results) {
+        _lastAnalysisResults = results;
+        Summarizer summer = new Summarizer(
+            dart: _context.dartSource,
+            html: _context.htmlSource,
+            css: _context.cssSource,
+            analysis: results);
+        return summer.returnAsSimpleSummary();
+      }).catchError((e) {
+        _logger.severe(e);
+      });
+    }
   }
 
   /// Perform static analysis of the source code. Return whether the code
@@ -589,7 +605,9 @@ class Playground implements GistContainer, GistController {
     Future request = dartServices.analyze(input).timeout(serviceCallTimeout);
     _analysisRequest = request;
 
-    return request.then((AnalysisResults result) {
+    return request.then((AnalysisResults results) {
+      _lastAnalysisResults = results;
+
       // Discard if we requested another analysis.
       if (_analysisRequest != request) return false;
 
@@ -598,9 +616,9 @@ class Playground implements GistContainer, GistController {
 
       busyLight.reset();
 
-      _displayIssues(result.issues);
+      _displayIssues(results.issues);
 
-      _context.dartDocument.setAnnotations(result.issues
+      _context.dartDocument.setAnnotations(results.issues
           .map((AnalysisIssue issue) {
         int startLine = lines.getLineForOffset(issue.charStart);
         int endLine =
@@ -616,8 +634,8 @@ class Playground implements GistContainer, GistController {
             start: start, end: end);
       }).toList());
 
-      bool hasErrors = result.issues.any((issue) => issue.kind == 'error');
-      bool hasWarnings = result.issues.any((issue) => issue.kind == 'warning');
+      bool hasErrors = results.issues.any((issue) => issue.kind == 'error');
+      bool hasWarnings = results.issues.any((issue) => issue.kind == 'warning');
 
       _updateRunButton(hasErrors: hasErrors, hasWarnings: hasWarnings);
 
