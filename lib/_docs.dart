@@ -7,9 +7,8 @@ library docs_sample;
 import 'dart:async';
 import 'dart:html';
 
-import 'core/event_bus.dart';
-
 import 'core/dependencies.dart';
+import 'core/event_bus.dart';
 import 'core/modules.dart';
 import 'dart_pad.dart';
 import 'modules/dart_pad_module.dart';
@@ -19,8 +18,6 @@ import 'services/execution_iframe.dart';
 
 EventBus _bus = new EventBus();
 ModuleManager modules = new ModuleManager();
-
-// TODO: add an 'explore' button
 
 Future _initModules() {
   modules.register(new DartPadModule());

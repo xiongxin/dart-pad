@@ -69,7 +69,7 @@ class PlaygroundMobile {
   PaperToast _errorsToast;
   PaperDialog _messageDialog;
   PaperDialog _resetDialog;
-  PaperDialog _exportDialog;
+  // PaperDialog _exportDialog;
   PolymerElement _output;
   PaperProgress _runProgress;
 
@@ -175,11 +175,11 @@ class PlaygroundMobile {
   }
 
   void registerExportDialog() {
-    if ($("#exportDialog") != null) {
+    /* if ($("#exportDialog") != null) {
       _exportDialog = new PaperDialog.from($("#exportDialog"));
     } else {
       _exportDialog = new PaperDialog();
-    }
+    } */
   }
 
   void registerDocPanel() {
@@ -223,8 +223,10 @@ class PlaygroundMobile {
     if ($('[icon="launch"]') != null) {
       _exportButton = new PaperIconButton.from($('[icon="launch"]'));
       _exportButton.clickAction(() {
-        _exportDialog.open();
+        // Sharing is currently disabled pending establishing OAuth2 configurations with Github.
+        //_exportDialog.open();
         ga.sendEvent("embed", "export");
+        window.open("/${_gistId}", "_export");
       });
     }
   }
@@ -298,7 +300,6 @@ class PlaygroundMobile {
     registerCancelExportButton();
     registerAffirmExportButton();
     registerConsole();
-
     _clearOutput();
   }
 
@@ -361,7 +362,6 @@ class PlaygroundMobile {
     //modules.register(new MockCompilerModule());
     modules.register(new DartServicesModule());
     modules.register(new DartSupportServicesModule());
-    //modules.register(new AceModule());
     modules.register(new CodeMirrorModule());
 
     return modules.start();
@@ -627,7 +627,10 @@ class PlaygroundMobile {
   }
 
   void _performAnalysis() {
-    var input = new SourceRequest()..source = _context.dartSource;
+    var input = new SourceRequest()
+      ..source = _context.dartSource
+      ..strongMode = strongModeDefault;
+
     Lines lines = new Lines(input.source);
 
     Future<AnalysisResults> request =

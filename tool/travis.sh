@@ -7,8 +7,8 @@
 # Fast fail the script on failures.
 set -e
 
-# Install the bower and vulcanize.
-npm install -g bower
+# Install bower and vulcanize.
+# npm install -g bower
 npm install -g vulcanize
 
 # Run the analyze/test/build script.
@@ -17,7 +17,3 @@ dart tool/grind.dart buildbot
 # Run the UI/web tests as well.
 # TODO: Our bot is flakey...
 #dart tool/grind.dart test-web
-
-# Run the webdriver integration tests.
-# Disabled; tracking the failure here: #441.
-# dart test/web_integration.dart

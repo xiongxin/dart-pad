@@ -86,6 +86,10 @@ abstract class Document {
   String get value;
   set value(String str);
 
+  /// Update the value on behalf of a user action, performing
+  /// save, etc.
+  void updateValue(String str);
+
   Position get cursor;
 
   void select(Position start, [Position end]);
@@ -109,7 +113,7 @@ abstract class Document {
   Stream get onChange;
 }
 
-class Annotation implements Comparable {
+class Annotation implements Comparable<Annotation> {
   static int _errorValue(String type) {
     if (type == 'error') return 2;
     if (type == 'warning') return 1;
@@ -186,7 +190,7 @@ class Completion {
 
   bool isSetterAndMatchesGetter(Completion other) =>
       displayString == other.displayString &&
-          (type == "type-getter" && other.type == "type-setter");
+      (type == "type-getter" && other.type == "type-setter");
 }
 
 class SourceEdit {

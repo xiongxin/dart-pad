@@ -1,0 +1,11 @@
+analyzer:
+  strong-mode: true
+  exclude:
+    - 'build/**'
+    - 'doc/api/**'
+    - 'lib/bower/**'
+    - 'last_prod/**'
+
+linter:
+  rules:
+    - directives_ordering

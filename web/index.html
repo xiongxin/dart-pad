@@ -7,6 +7,7 @@
 <html>
   <head>
     <meta charset="utf-8">
+    <link rel="shortcut icon" href="/dart-64.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -43,6 +44,7 @@
       <div>
         <button type="button" id="newbutton" class="button">New Pad…</button>
         <button type="button" id="resetbutton" class="button" disabled>Reset…</button>
+        <button type="button" id="formatbutton" class="button">Format</button>
       </div>
       <div class="header-gist-name" flex></div>
       <div>
@@ -119,12 +121,6 @@
     </section>
 
     <footer layout horizontal>
-      <div>
-        <a href="https://www.dartlang.org/" class="footer-item"
-            target="dartlang">www.dartlang.org</a>
-        <a href="https://api.dartlang.org/" target="dartlang">API documentation</a>
-      </div>
-      <div flex></div>
       <div id="keyboard-button" class="keyboard footer-item"></div>
       <div>
         <a href="https://github.com/dart-lang/dart-pad/wiki/Privacy-Policy"
@@ -132,6 +128,7 @@
         <a href="https://github.com/dart-lang/dart-pad/issues"
             target="repo">Send feedback</a>
       </div>
+      <div flex></div>
     </footer>
   </body>
 </html>

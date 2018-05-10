@@ -12,12 +12,14 @@ import 'core/event_bus.dart';
 import 'core/keys.dart';
 import 'editing/editor.dart';
 import 'elements/state.dart';
-import 'services/dartservices.dart';
 import 'services/_dartpadsupportservices.dart';
+import 'services/dartservices.dart';
 import 'services/execution.dart';
 import 'sharing/gists.dart';
 import 'src/ga.dart';
 import 'src/options.dart';
+
+const bool strongModeDefault = true;
 
 Analytics get ga => deps[Analytics];
 

@@ -45,9 +45,8 @@ build() {
   // Copy our third party python code into web/.
   new FilePath('third_party/mdetect/mdetect.py').copy(_webDir);
 
-  // Copy the codemirror javascript into web/scripts.
-  new FilePath('packages/codemirror/codemirror.js')
-      .copy(_webDir.join('scripts'));
+  // Copy the codemirror script into web/scripts.
+  new FilePath(_getCodeMirrorScriptPath()).copy(_webDir.join('scripts'));
 
   // Speed up the build, from 140s to 100s.
   //Pub.build(directories: ['web', 'test']);
@@ -56,28 +55,18 @@ build() {
   FilePath mainFile = _buildDir.join('web', 'scripts/main.dart.js');
   log('${mainFile} compiled to ${_printSize(mainFile)}');
 
-  FilePath mobileFile = _buildDir.join('web', 'scripts/mobile.dart.js');
-  log('${mobileFile.path} compiled to ${_printSize(mobileFile)}');
-
   FilePath testFile = _buildDir.join('test', 'web.dart.js');
-  if (testFile.exists) log('${testFile.path} compiled to ${_printSize(testFile)}');
+  if (testFile.exists)
+    log('${testFile.path} compiled to ${_printSize(testFile)}');
 
   FilePath embedFile = _buildDir.join('web', 'scripts/embed.dart.js');
   log('${mainFile} compiled to ${_printSize(embedFile)}');
 
-  // Delete the build/web/packages directory.
-  delete(getDir('build/web/packages'));
-
-  // Reify the symlinks.
-  // cp -R -L packages build/web/packages
-  run('cp', arguments: ['-R', '-L', 'packages', 'build/web/packages']);
-
   // Remove .dart files.
   int count = 0;
 
-  for (FileSystemEntity entity in getDir('build/web/packages').listSync(
-    recursive: true, followLinks: false
-  )) {
+  for (FileSystemEntity entity in getDir('build/web/packages')
+      .listSync(recursive: true, followLinks: false)) {
     if (entity is! File) continue;
     if (!entity.path.endsWith('.dart')) continue;
     count++;
@@ -89,14 +78,23 @@ build() {
   // Run vulcanize.
   // Imports vulcanized, not inlined for IE support
   vulcanizeNoExclusion('scripts/imports.html');
-  vulcanize('mobile.html');
   vulcanize('index.html');
   vulcanize('embed-dart.html');
   vulcanize('embed-html.html');
   vulcanize('embed-inline.html');
 
-  return _uploadCompiledStats(
-      mainFile.asFile.lengthSync(), mobileFile.asFile.lengthSync());
+  return _uploadCompiledStats(mainFile.asFile.lengthSync());
+}
+
+/// Return the path for `packages/codemirror/codemirror.js`.
+String _getCodeMirrorScriptPath() {
+  Map<String, String> packageToUri = {};
+  for (String line in new File('.packages').readAsLinesSync()) {
+    int index = line.indexOf(':');
+    packageToUri[line.substring(0, index)] = line.substring(index + 1);
+  }
+  String packagePath = Uri.parse(packageToUri['codemirror']).path;
+  return '${packagePath}codemirror.js';
 }
 
 // Run vulcanize
@@ -110,8 +108,6 @@ vulcanize(String filepath) {
         '--inline-css',
         '--inline-scripts',
         '--exclude',
-        'scripts/mobile.dart.js',
-        '--exclude',
         'scripts/embed.dart.js',
         '--exclude',
         'scripts/main.dart.js',
@@ -119,8 +115,6 @@ vulcanize(String filepath) {
         'scripts/codemirror.js',
         '--exclude',
         'scripts/embed_components.html',
-        '--exclude',
-        'scripts/mobile_components.html',
         filepath
       ],
       workingDirectory: 'build/web');
@@ -173,16 +167,13 @@ void buildbot() => null;
 @Task('Prepare the app for deployment')
 @Depends(buildbot)
 deploy() {
-  // Validate the deploy. This means that we're using version `dev` on the
-  // master branch and version `prod` on the prod branch. We only deploy prod
-  // from the prod branch. Other versions are possible but not verified.
+  // Validate the deploy.
 
   // `dev` is served from dev.dart-pad.appspot.com
   // `prod` is served from prod.dart-pad.appspot.com and from dartpad.dartlang.org.
 
   Map app = yaml.loadYaml(new File('web/app.yaml').readAsStringSync());
 
-  final String version = app['version'];
   List handlers = app['handlers'];
   bool isSecure = false;
 
@@ -198,53 +189,28 @@ deploy() {
     final String branch = branchRef.branchName;
 
     log('branch: ${branch}');
-    log('version: ${version}');
 
     if (branch == 'prod') {
-      if (version != 'prod') {
-        fail('Trying to deploy non-prod version from the prod branch');
-      }
-
       if (!isSecure) {
         fail('The prod branch must have `secure: always`.');
       }
     }
 
-    if (branch == 'master') {
-      if (version != 'dev' && !version.startsWith('dev-')) {
-        fail('Trying to deploy non-dev version from the master branch');
-      }
-    }
-
-    if (version == 'prod') {
-      if (branch != 'prod') {
-        fail('The prod version can only be deployed from the prod branch');
-      }
-    }
-
-    if (version != 'prod') {
-      if (isSecure) {
-        fail('The ${version} version should not have `secure: always` set');
-      }
-    }
-
-    log('\nexecute: `appcfg.py update build/web`');
+    log('\nexecute: `gcloud app deploy build/web/app.yaml --project=dart-pad --no-promote`');
   });
 }
 
 @Task()
 clean() => defaultClean();
 
-Future _uploadCompiledStats(num mainLength, int mobileLength) {
+Future _uploadCompiledStats(num mainLength) {
   Map env = Platform.environment;
 
   if (env.containsKey('LIBRATO_USER') && env.containsKey('TRAVIS_COMMIT')) {
     Librato librato = new Librato.fromEnvVars();
     log('Uploading stats to ${librato.baseUrl}');
     LibratoStat mainSize = new LibratoStat('main.dart.js', mainLength);
-    LibratoStat mobileSize =
-        new LibratoStat('mobileSize.dart.js', mobileLength);
-    return librato.postStats([mainSize, mobileSize]).then((_) {
+    return librato.postStats([mainSize]).then((_) {
       String commit = env['TRAVIS_COMMIT'];
       LibratoLink link = new LibratoLink(
           'github', 'https://github.com/dart-lang/dart-pad/commit/${commit}');

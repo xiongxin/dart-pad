@@ -1,10 +1,10 @@
 // This is a generated file (see the discoveryapis_generator project).
 
-library services.P_dartpadsupportservices.v1;
+library dart_services.P_dartpadsupportservices.v1;
 
-import 'dart:core' as core;
 import 'dart:async' as async;
 import 'dart:convert' as convert;
+import 'dart:core' as core;
 
 import 'package:_discoveryapis_commons/_discoveryapis_commons.dart' as commons;
 import 'package:http/http.dart' as http;
@@ -47,7 +47,7 @@ class P_dartpadsupportservicesApi {
     var _body = null;
 
     if (request != null) {
-      _body = convert.JSON.encode((request).toJson());
+      _body = convert.json.encode((request).toJson());
     }
 
     _url = 'export';
@@ -115,7 +115,7 @@ class P_dartpadsupportservicesApi {
     var _body = null;
 
     if (request != null) {
-      _body = convert.JSON.encode((request).toJson());
+      _body = convert.json.encode((request).toJson());
     }
 
     _url = 'pullExportData';
@@ -187,7 +187,7 @@ class P_dartpadsupportservicesApi {
     var _body = null;
 
     if (request != null) {
-      _body = convert.JSON.encode((request).toJson());
+      _body = convert.json.encode((request).toJson());
     }
 
     _url = 'storeGist';

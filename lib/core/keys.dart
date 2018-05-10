@@ -9,7 +9,8 @@ import 'dart:html';
 
 import '../src/util.dart';
 
-final _isMac = window.navigator.appVersion.toLowerCase().contains('macintosh');
+final bool _isMac =
+    window.navigator.appVersion.toLowerCase().contains('macintosh');
 
 /**
  * Map key events into commands.
@@ -118,7 +119,7 @@ String printKeyEvent(KeyboardEvent event) {
 }
 
 String makeKeyPresentable(String key) {
-  List keyAsList = key.split("-");
+  List<String> keyAsList = key.split("-");
   if (isMac()) {
     if (keyAsList.any((s) => s == "meta")) {
       return null;

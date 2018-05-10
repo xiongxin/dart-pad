@@ -5,15 +5,11 @@
 library dartpad.completion;
 
 import 'dart:async';
-import 'dart:convert' show JSON;
-
-import 'package:logging/logging.dart';
+import 'dart:convert' show json;
 
 import 'editing/editor.dart';
 import 'services/dartservices.dart' hide SourceEdit;
 import 'src/util.dart';
-
-Logger _logger = new Logger('completion');
 
 // TODO: For CodeMirror, we get a request each time the user hits a key when the
 // completion popup is open. We need to cache the results when appropriate.
@@ -37,7 +33,8 @@ class DartCompleter extends CodeCompleter {
       ..source = editor.document.value
       ..offset = offset;
 
-    CancellableCompleter completer = new CancellableCompleter();
+    CancellableCompleter<CompletionResult> completer =
+        new CancellableCompleter<CompletionResult>();
     _lastCompleter = completer;
 
     if (onlyShowFixes) {
@@ -74,46 +71,51 @@ class DartCompleter extends CodeCompleter {
               replaceOffset, replaceLength, completion);
         }).toList();
 
-        List<Completion> completions = analysisCompletions.map((completion) {
-          // TODO: Move to using a LabelProvider; decouple the data and rendering.
-          String displayString = completion.isMethod
-              ? '${completion.text}${completion.parameters}'
-              : completion.text;
-          if (completion.isMethod && completion.returnType != null) {
-            displayString += ' → ${completion.returnType}';
-          }
+        List<Completion> completions = analysisCompletions
+            .map((completion) {
+              // TODO: Move to using a LabelProvider; decouple the data and rendering.
+              String displayString = completion.isMethod
+                  ? '${completion.text}${completion.parameters}'
+                  : completion.text;
+              if (completion.isMethod && completion.returnType != null) {
+                displayString += ' → ${completion.returnType}';
+              }
 
-          // Filter unmatching completions.
-          // TODO: This is temporary; tracking issue here:
-          // https://github.com/dart-lang/dart-services/issues/87.
-          if (replacementString.isNotEmpty) {
-            if (!completion.matchesCompletionFragment(replacementString)) {
-              return null;
-            }
-          }
+              // Filter unmatching completions.
+              // TODO: This is temporary; tracking issue here:
+              // https://github.com/dart-lang/dart-services/issues/87.
+              if (replacementString.isNotEmpty) {
+                if (!completion.matchesCompletionFragment(replacementString)) {
+                  return null;
+                }
+              }
 
-          String text = completion.text;
+              String text = completion.text;
 
-          if (completion.isMethod) text += "()";
+              if (completion.isMethod) text += "()";
 
-          String deprecatedClass = completion.isDeprecated ? ' deprecated' : '';
+              String deprecatedClass =
+                  completion.isDeprecated ? ' deprecated' : '';
 
-          if (completion.type == null) {
-            return new Completion(text,
-                displayString: displayString, type: deprecatedClass);
-          } else {
-            int cursorPos = null;
+              if (completion.type == null) {
+                return new Completion(text,
+                    displayString: displayString, type: deprecatedClass);
+              } else {
+                int cursorPos = null;
 
-            if (completion.isMethod && completion.parameterCount > 0) {
-              cursorPos = text.indexOf('(') + 1;
-            }
+                if (completion.isMethod && completion.parameterCount > 0) {
+                  cursorPos = text.indexOf('(') + 1;
+                }
 
-            return new Completion(text,
-                displayString: displayString,
-                type: "type-${completion.type.toLowerCase()}${deprecatedClass}",
-                cursorOffset: cursorPos);
-          }
-        }).where((x) => x != null).toList();
+                return new Completion(text,
+                    displayString: displayString,
+                    type:
+                        "type-${completion.type.toLowerCase()}${deprecatedClass}",
+                    cursorOffset: cursorPos);
+              }
+            })
+            .where((x) => x != null)
+            .toList();
 
         List<Completion> filterCompletions = new List.from(completions);
 
@@ -155,7 +157,7 @@ class AnalysisCompletion implements Comparable {
 
   // Convert maps and lists that have been passed as json.
   void _convert(String key) {
-    if (_map[key] is String) _map[key] = JSON.decode(_map[key]);
+    if (_map[key] is String) _map[key] = json.decode(_map[key]);
   }
 
   // KEYWORD, INVOCATION, ...
@@ -197,7 +199,6 @@ class AnalysisCompletion implements Comparable {
   String get type =>
       _map.containsKey('element') ? _map['element']['kind'] : kind;
 
-  // TODO: Changed from `contains` to `startsWith`; see #211.
   bool matchesCompletionFragment(String completionFragment) =>
       text.toLowerCase().startsWith(completionFragment.toLowerCase());
 

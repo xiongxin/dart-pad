@@ -5,7 +5,7 @@
 library dartpad.documentation;
 
 import 'dart:async';
-import 'dart:convert';
+import 'dart:convert' as convert show htmlEscape;
 import 'dart:html';
 import 'dart:math' as math;
 
@@ -68,11 +68,9 @@ class DocHandler {
           return;
         }
         docPanel.setInnerHtml(docResult.html, validator: _htmlValidator);
-        docPanel
-            .querySelectorAll("a")
-            .forEach((Element a) {
-              if (a is AnchorElement) a.target = "docs";
-            });
+        docPanel.querySelectorAll("a").forEach((Element a) {
+          if (a is AnchorElement) a.target = "docs";
+        });
         docPanel
             .querySelectorAll("h1")
             .forEach((h) => h.classes.add("type-${docResult.entitykind}"));
@@ -109,11 +107,9 @@ class DocHandler {
         .then((DocumentResponse result) {
       return _getHtmlTextFor(result).then((_DocResult docResult) {
         docPanel.setInnerHtml(docResult.html, validator: _htmlValidator);
-        docPanel
-            .querySelectorAll("a")
-            .forEach((Element a) {
-              if (a is AnchorElement) a.target = "docs";
-            });
+        docPanel.querySelectorAll("a").forEach((Element a) {
+          if (a is AnchorElement) a.target = "docs";
+        });
         docPanel
             .querySelectorAll("h1")
             .forEach((h) => h.classes.add("type-${docResult.entitykind}"));
@@ -147,10 +143,9 @@ class DocHandler {
 
     String apiLink = _dartApiLink(
         libraryName: libraryName,
-        enclosingClassName: info['enclosingClassName'],
-        memberName: info['name']);
+        enclosingClassName: info['enclosingClassName']);
 
-    Future mdnCheck = new Future.value();
+    Future<String> mdnCheck = new Future.value();
     if (!hasDartdoc && isHtmlLib && domName != null) {
       mdnCheck = createMdnMarkdownLink(domName);
     }
@@ -168,21 +163,20 @@ ${libraryName == null ? '' : apiLink }\n\n''';
           inlineSyntaxes: [new InlineBracketsColon(), new InlineBrackets()]);
 
       // Append a 'launch' icon to the 'Open library docs' link.
-      _htmlDocs = _htmlDocs.replaceAll(
-          "library docs</a>",
+      _htmlDocs = _htmlDocs.replaceAll("library docs</a>",
           "library docs <span class='launch-icon'></span></a>");
 
       return new _DocResult(_htmlDocs, kind.replaceAll(' ', '_'));
     });
   }
 
-  String _dartApiLink(
-      {String libraryName, String enclosingClassName, String memberName}) {
+  String _dartApiLink({String libraryName, String enclosingClassName}) {
     StringBuffer apiLink = new StringBuffer();
     if (libraryName != null) {
       if (libraryName.contains('dart:')) {
         libraryName = libraryName.replaceAll(':', '-');
-        apiLink.write('https://api.dartlang.org/stable/${libraryName}/${libraryName}-library.html');
+        apiLink.write(
+            'https://api.dartlang.org/stable/${libraryName}/${libraryName}-library.html');
 
         return '[Open library docs](${apiLink})';
       }
@@ -200,14 +194,16 @@ Future<String> createMdnMarkdownLink(String domName) {
       ? domName.substring(0, domName.indexOf("."))
       : null;
 
-  return _urlExists('$baseUrl$domName').then((exists) {
+  return _urlExists('$baseUrl$domName').then((bool exists) {
     if (exists) return '[$domName]($baseUrl$domName)';
 
     if (domClassName != null) {
-      return _urlExists('$baseUrl$domClassName').then((exists) {
-        if (exists) return '[$domClassName]($baseUrl$domClassName)';
+      return _urlExists('$baseUrl$domClassName').then((bool exists) {
+        return exists ? '[$domClassName]($baseUrl$domClassName)' : null;
       });
     }
+
+    return null;
   });
 
   // Avoid searching for now.
@@ -229,7 +225,7 @@ class _DocResult {
 class InlineBracketsColon extends markdown.InlineSyntax {
   InlineBracketsColon() : super(r'\[:\s?((?:.|\n)*?)\s?:\]');
 
-  String htmlEscape(String text) => HTML_ESCAPE.convert(text);
+  String htmlEscape(String text) => convert.htmlEscape.convert(text);
 
   @override
   bool onMatch(markdown.InlineParser parser, Match match) {
@@ -249,7 +245,7 @@ class InlineBrackets extends markdown.InlineSyntax {
   // <code>text</code> (http://www.example.com)
   InlineBrackets() : super(r'\[\s?((?:.|\n)*?)\s?\](?!\s?\()');
 
-  String htmlEscape(String text) => HTML_ESCAPE.convert(text);
+  String htmlEscape(String text) => convert.htmlEscape.convert(text);
 
   @override
   bool onMatch(markdown.InlineParser parser, Match match) {

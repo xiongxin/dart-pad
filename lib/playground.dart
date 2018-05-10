@@ -53,6 +53,7 @@ class Playground implements GistContainer, GistController {
   DivElement get _docPanel => querySelector('#documentation');
 
   DButton runButton;
+  DButton formatButton;
   DOverlay overlay;
   DBusyLight busyLight;
   DBusyLight consoleBusyLight;
@@ -114,8 +115,18 @@ class Playground implements GistContainer, GistController {
     });
 
     DButton shareButton = new DButton(querySelector('#sharebutton'));
-    shareButton.onClick.listen((Event e) => _createSummary()
-        .then((GistSummary summary) => sharingDialog.showWithSummary(summary)));
+
+    shareButton.onClick.listen((Event e) => window.open(
+        "https://github.com/dart-lang/dart-pad/wiki/Sharing-Guide",
+        '_sharing'));
+
+    // Sharing is currently disabled pending establishing OAuth2 configurations with Github.
+    // shareButton.onClick.listen((Event e) => _createSummary()
+    //    .then((GistSummary summary) => sharingDialog.showWithSummary(summary)));
+
+    formatButton = new DButton(querySelector('#formatbutton'));
+    formatButton.onClick.listen((Event e) => _format());
+
     runButton = new DButton(querySelector('#runbutton'));
     runButton.onClick.listen((e) {
       _handleRun();
@@ -142,7 +153,8 @@ class Playground implements GistContainer, GistController {
 
     // If there was a change, and the gist is dirty, write the gist's contents
     // to storage.
-    frappe.Property gistChanged = new frappe.Property.fromStream(mutableGist.onChanged);
+    frappe.Property gistChanged =
+        new frappe.Property.fromStream(mutableGist.onChanged);
     gistChanged.debounce(new Duration(milliseconds: 100)).listen((_) {
       if (mutableGist.dirty) {
         _gistStorage.setStoredGist(mutableGist.createGist());
@@ -161,6 +173,7 @@ class Playground implements GistContainer, GistController {
           .timeout(new Duration(seconds: 2))
           .then((VersionResponse ver) {
         print("Dart SDK version ${ver.sdkVersion} (${ver.sdkVersionFull})");
+        print('CodeMirror: ${CodeMirrorModule.version}');
         new AboutDialog(ver.sdkVersion)..show();
       }).catchError((e) {
         new AboutDialog()..show();
@@ -205,8 +218,8 @@ class Playground implements GistContainer, GistController {
         editableGist.setBackingGist(blankGist);
       });
     } else if (url.hasQuery && url.queryParameters['source'] != null) {
-      UuidContainer gistId =
-          await dartSupportServices.retrieveGist(id: url.queryParameters['source']);
+      UuidContainer gistId = await dartSupportServices.retrieveGist(
+          id: url.queryParameters['source']);
       Gist backing = await gistLoader.loadGist(gistId.uuid);
       editableGist.setBackingGist(backing);
       router.go('gist', {'gist': backing.id});
@@ -350,7 +363,6 @@ class Playground implements GistContainer, GistController {
     //modules.register(new MockDartServicesModule());
     modules.register(new DartServicesModule());
     modules.register(new DartSupportServicesModule());
-    //modules.register(new AceModule());
     modules.register(new CodeMirrorModule());
 
     return modules.start();
@@ -448,6 +460,9 @@ class Playground implements GistContainer, GistController {
       }));
 
     _context = new PlaygroundContext(editor);
+    _context.onModeChange.listen((_) {
+      formatButton.disabled = _context.activeMode != 'dart';
+    });
     deps[Context] = _context;
 
     editorFactory.registerCompleter(
@@ -613,7 +628,7 @@ class Playground implements GistContainer, GistController {
     }
   }
 
-  Future<GistSummary> _createSummary() {
+  /* Future<GistSummary> _createSummary() {
     return dartSupportServices.getUnusedMappingId().then((UuidContainer id) {
       _mappingId = id.uuid;
       SourcesRequest input = new SourcesRequest()
@@ -624,22 +639,24 @@ class Playground implements GistContainer, GistController {
         };
       return dartServices.summarize(input);
     }).then((SummaryText summary) {
-      return new GistSummary(
-        summary.text,
-        'Find this at [dartpad.dartlang.org/?source=${_mappingId}](https://dartpad.dartlang.org/?source=${_mappingId}).'
-      );
+      return new GistSummary(summary.text,
+          'Find this at [dartpad.dartlang.org/?source=${_mappingId}](https://dartpad.dartlang.org/?source=${_mappingId}).');
     }).catchError((e) {
       _logger.severe(e);
     });
-  }
+  } */
 
   /// Perform static analysis of the source code. Return whether the code
   /// analyzed cleanly (had no errors or warnings).
   Future<bool> _performAnalysis() {
-    SourceRequest input = new SourceRequest()..source = _context.dartSource;
+    SourceRequest input = new SourceRequest()
+      ..source = _context.dartSource
+      ..strongMode = strongModeDefault;
+
     Lines lines = new Lines(input.source);
 
-    Future request = dartServices.analyze(input).timeout(serviceCallTimeout);
+    Future<AnalysisResults> request =
+        dartServices.analyze(input).timeout(serviceCallTimeout);
     _analysisRequest = request;
 
     return request.then((AnalysisResults result) {
@@ -681,6 +698,35 @@ class Playground implements GistContainer, GistController {
       _context.dartDocument.setAnnotations([]);
       busyLight.reset();
       _updateRunButton();
+      _logger.severe(e);
+    });
+  }
+
+  Future _format() {
+    String originalSource = _context.dartSource;
+    SourceRequest input = new SourceRequest()..source = originalSource;
+    formatButton.disabled = true;
+
+    Future<FormatResponse> request =
+        dartServices.format(input).timeout(serviceCallTimeout);
+    return request.then((FormatResponse result) {
+      busyLight.reset();
+      formatButton.disabled = false;
+
+      if (result.newString == null || result.newString.isEmpty) {
+        _logger.fine("Format returned null/empty result");
+        return;
+      }
+
+      if (originalSource != result.newString) {
+        editor.document.updateValue(result.newString);
+        DToast.showMessage("Format successful.");
+      } else {
+        DToast.showMessage("No formatting changes.");
+      }
+    }).catchError((e) {
+      busyLight.reset();
+      formatButton.disabled = false;
       _logger.severe(e);
     });
   }

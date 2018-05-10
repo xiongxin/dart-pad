@@ -5,8 +5,8 @@
 library options;
 
 import 'dart:async';
-import 'dart:js';
 import 'dart:html';
+import 'dart:js';
 
 /// This options class provides a way to configure dartpad through the JS
 /// console. This is useful for things like developer options.
@@ -19,7 +19,8 @@ class Options {
   final String namespace;
 
   Map<String, String> values = {};
-  StreamController _controller = new StreamController.broadcast();
+  StreamController<OptionChangedEvent> _controller =
+      new StreamController.broadcast();
 
   Options({this.namespace: 'dartpad'});
 
